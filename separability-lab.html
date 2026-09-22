@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Separability Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1b2e;
+    --surface:#16263f;
+    --surface-2:#1c2f4d;
+    --ink:#edf1f7;
+    --ink-dim:#93a7c2;
+    --ink-faint:#5d7191;
+    --line:rgba(148,180,214,0.16);
+    --line-strong:rgba(148,180,214,0.32);
+    --class-a:#48c9e5;
+    --class-b:#ff7a68;
+    --boundary:#f2b441;
+    --svm:#9d7bf0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    padding:2.5rem 1.5rem 4rem;
+  }
+  .wrap{max-width:1120px;margin:0 auto;}
+
+  header{margin-bottom:2.25rem;}
+  h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:clamp(28px,4vw,40px);
+    margin:0 0 0.6rem;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    color:var(--ink-dim);
+    font-size:15px;
+    line-height:1.7;
+    max-width:64ch;
+    margin:0;
+  }
+
+  .board{
+    display:grid;
+    grid-template-columns:minmax(0,1.45fr) minmax(270px,1fr);
+    gap:1.5rem;
+    align-items:start;
+  }
+  @media (max-width:860px){
+    .board{grid-template-columns:1fr;}
+  }
+
+  .panel{
+    background:var(--surface);
+    border:0.5px solid var(--line);
+    border-radius:10px;
+    padding:1.25rem;
+  }
+  .panel + .panel{margin-top:1rem;}
+
+  .canvas-wrap canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    border-radius:6px;
+    background:var(--bg);
+  }
+  canvas.drawable{cursor:crosshair;}
+
+  .view-toggle{
+    display:flex;
+    gap:6px;
+    margin-bottom:0.85rem;
+  }
+  .view-toggle button{flex:1;font-size:12px;padding:6px 8px;}
+
+  .axis-caption{
+    display:flex;
+    justify-content:space-between;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-top:0.5rem;
+  }
+
+  .section-label{
+    font-size:13px;
+    font-weight:500;
+    color:var(--ink);
+    margin:0 0 0.6rem;
+  }
+  .panel-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:14px;
+    font-weight:500;
+    margin:0 0 0.75rem;
+  }
+
+  .seg{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:6px;
+    margin-bottom:1.1rem;
+  }
+
+  button{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    color:var(--ink);
+    background:var(--surface-2);
+    border:0.5px solid var(--line);
+    border-radius:7px;
+    padding:8px 10px;
+    cursor:pointer;
+    transition:background 0.15s, border-color 0.15s;
+  }
+  button:hover{background:#233a5e;border-color:var(--line-strong);}
+  button:active{transform:scale(0.98);}
+  button.active{
+    background:rgba(242,180,65,0.14);
+    border-color:var(--boundary);
+    color:var(--boundary);
+  }
+  button.wide{grid-column:1 / -1;}
+  button:disabled{opacity:0.35;cursor:not-allowed;}
+
+  .action-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:1.1rem;
+  }
+  .action-row button{flex:1;}
+  .primary{
+    background:var(--boundary);
+    border-color:var(--boundary);
+    color:#241804;
+    font-weight:500;
+  }
+  .primary:hover{background:#f7c463;}
+
+  .slider-row{margin-bottom:1.1rem;}
+  .slider-row.svm-only{display:none;}
+  .slider-row.svm-only.show{display:block;}
+  .slider-row .slider-label{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    color:var(--ink-dim);
+    margin-bottom:6px;
+  }
+  .slider-row .slider-label span:last-child{
+    font-family:'JetBrains Mono',monospace;
+    color:var(--ink);
+  }
+  input[type=range]{
+    width:100%;
+    accent-color:var(--boundary);
+  }
+
+  .readout{
+    background:var(--surface-2);
+    border:0.5px solid var(--line);
+    border-radius:8px;
+    padding:0.85rem 1rem;
+    margin-bottom:1.1rem;
+  }
+  .readout-row{
+    display:flex;
+    justify-content:space-between;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    padding:3px 0;
+  }
+  .readout-row span:first-child{color:var(--ink-faint);}
+  .readout-row span:last-child{color:var(--ink);}
+
+  .equation{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+    background:var(--surface-2);
+    border:0.5px solid var(--line);
+    border-radius:8px;
+    padding:0.7rem 0.85rem;
+    margin-bottom:1.1rem;
+    line-height:1.6;
+    word-break:break-word;
+  }
+
+  .note{
+    font-size:13px;
+    line-height:1.65;
+    color:var(--ink-dim);
+    border-top:0.5px solid var(--line);
+    padding-top:0.9rem;
+  }
+
+  .legend{
+    display:flex;
+    gap:16px;
+    margin-top:0.75rem;
+    font-size:12px;
+    color:var(--ink-dim);
+    flex-wrap:wrap;
+  }
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dash{width:14px;height:2px;display:inline-block;}
+
+  .custom-controls{
+    display:none;
+    gap:6px;
+    margin-bottom:1.1rem;
+  }
+  .custom-controls.show{display:grid;grid-template-columns:repeat(2,1fr);}
+  .custom-controls button.class-a.active{background:rgba(72,201,229,0.16);border-color:var(--class-a);color:var(--class-a);}
+  .custom-controls button.class-b.active{background:rgba(255,122,104,0.16);border-color:var(--class-b);color:var(--class-b);}
+
+  .export-row{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:6px;
+    margin-bottom:0.4rem;
+  }
+  .export-row button{font-size:12px;}
+
+  #compare-panel{display:none;}
+  #compare-panel .readout-row span:last-child{font-weight:500;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Separability lab</h1>
+    <p>Two classes of points, one question: can a straight line tell them apart? Pick a dataset, train a perceptron, a small neural network, or a kernel SVM live in your browser, and watch the decision boundary bend to fit — or fail to.</p>
+  </header>
+
+  <div class="board">
+
+    <div>
+      <div class="panel canvas-wrap">
+        <div class="view-toggle">
+          <button id="view-input" class="active" data-view="input">Input space</button>
+          <button id="view-hidden" data-view="hidden" disabled>Hidden-layer space</button>
+        </div>
+        <canvas id="plot" width="600" height="440"></canvas>
+        <div class="axis-caption" id="axis-caption">
+          <span>feature x1</span>
+          <span>feature x2</span>
+        </div>
+        <div class="legend" id="legend-main">
+          <span><span class="dot" style="background:var(--class-a)"></span>class A</span>
+          <span><span class="dot" style="background:var(--class-b)"></span>class B</span>
+          <span><span class="dash" style="background:var(--boundary)"></span>decision boundary</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <p class="panel-title">Training curve</p>
+        <canvas id="metrics" width="600" height="140"></canvas>
+        <div class="legend">
+          <span><span class="dash" style="background:var(--class-a)"></span>accuracy</span>
+          <span><span class="dash" style="background:var(--boundary)"></span>loss (scaled)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="section-label">Dataset</p>
+      <div class="seg" id="dataset-seg">
+        <button data-dataset="linear" class="active">Linear</button>
+        <button data-dataset="xor">XOR</button>
+        <button data-dataset="circles">Circles</button>
+        <button data-dataset="moons">Moons</button>
+        <button data-dataset="spiral">Spiral</button>
+        <button data-dataset="custom">Draw own</button>
+      </div>
+
+      <div class="custom-controls" id="custom-controls">
+        <button data-class="0" class="class-a active">Place class A</button>
+        <button data-class="1" class="class-b">Place class B</button>
+        <button class="wide" id="clear-points">Clear points</button>
+      </div>
+
+      <p class="section-label">Model</p>
+      <div class="seg" id="model-seg">
+        <button data-model="perceptron" class="active">Perceptron</button>
+        <button data-model="network">Neural net</button>
+        <button data-model="svm">Kernel SVM</button>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label"><span>learning rate</span><span id="lr-out">0.60</span></div>
+        <input type="range" id="lr-slider" min="0.05" max="2" step="0.05" value="0.6">
+      </div>
+
+      <div class="slider-row svm-only" id="gamma-row">
+        <div class="slider-label"><span>kernel width (gamma)</span><span id="gamma-out">0.60</span></div>
+        <input type="range" id="gamma-slider" min="0.05" max="3" step="0.05" value="0.6">
+      </div>
+
+      <div class="action-row">
+        <button class="primary" id="train-btn">Train</button>
+        <button id="step-btn">Step</button>
+        <button id="reset-btn">Reset</button>
+      </div>
+
+      <div class="action-row">
+        <button id="compare-btn">Compare all models</button>
+      </div>
+
+      <div class="readout" id="compare-panel">
+        <div class="readout-row"><span>perceptron</span><span id="cmp-perceptron">—</span></div>
+        <div class="readout-row"><span>neural net</span><span id="cmp-network">—</span></div>
+        <div class="readout-row"><span>kernel svm</span><span id="cmp-svm">—</span></div>
+      </div>
+
+      <div class="readout">
+        <div class="readout-row"><span>epoch</span><span id="epoch-out">0</span></div>
+        <div class="readout-row"><span>loss</span><span id="loss-out">—</span></div>
+        <div class="readout-row"><span>accuracy</span><span id="acc-out">—</span></div>
+        <div class="readout-row"><span>status</span><span id="status-out">idle</span></div>
+      </div>
+
+      <div class="equation" id="equation-out">boundary: train the model to see its equation</div>
+
+      <div class="export-row">
+        <button id="export-weights">Export weights</button>
+        <button id="export-data">Export dataset</button>
+      </div>
+
+      <p class="note" id="note-out"></p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('plot');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const DOMAIN = 10;
+
+  const metrics = document.getElementById('metrics');
+  const mctx = metrics.getContext('2d');
+  const MW = metrics.width, MH = metrics.height;
+
+  function toPx(x,y){ return [ (x/DOMAIN)*W, H - (y/DOMAIN)*H ]; }
+  function toData(px,py){ return [ (px/W)*DOMAIN, ((H-py)/H)*DOMAIN ]; }
+  function toPxDomain(x,y,lo,hi){ return [ ((x-lo)/(hi-lo))*W, H-((y-lo)/(hi-lo))*H ]; }
+
+  function mulberry32(seed){
+    return function(){
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function genLinear(){
+    const rand = mulberry32(7);
+    const pts = [];
+    for(let i=0;i<12;i++) pts.push({x:0.6+rand()*3.4, y:5.6+rand()*3.8, label:0});
+    for(let i=0;i<12;i++) pts.push({x:5.8+rand()*3.6, y:0.5+rand()*3.6, label:1});
+    return pts;
+  }
+  function genXOR(){
+    const rand = mulberry32(11);
+    const pts = [];
+    const quad = (x0,y0,label,n) => { for(let i=0;i<n;i++) pts.push({x:x0+rand()*3.2, y:y0+rand()*3.2, label}); };
+    quad(0.4,0.4,0,6);
+    quad(6.4,6.4,0,6);
+    quad(0.4,6.4,1,6);
+    quad(6.4,0.4,1,6);
+    return pts;
+  }
+  function genCircles(){
+    const rand = mulberry32(19);
+    const pts = [];
+    for(let i=0;i<14;i++){
+      const a = rand()*Math.PI*2, r = rand()*1.6;
+      pts.push({x:5+r*Math.cos(a), y:5+r*Math.sin(a), label:0});
+    }
+    for(let i=0;i<16;i++){
+      const a = rand()*Math.PI*2, r = 3.1+rand()*1.3;
+      pts.push({x:5+r*Math.cos(a), y:5+r*Math.sin(a), label:1});
+    }
+    return pts;
+  }
+  function genMoons(){
+    const rand = mulberry32(29);
+    const pts = [];
+    const j = () => (rand()-0.5)*0.5;
+    for(let i=0;i<16;i++){
+      const t = rand()*Math.PI;
+      pts.push({x:3+3*Math.cos(t)+j(), y:5.6+3*Math.sin(t)+j(), label:0});
+    }
+    for(let i=0;i<16;i++){
+      const t = rand()*Math.PI;
+      pts.push({x:5+3*Math.cos(t)+j(), y:4.4-3*Math.sin(t)+j(), label:1});
+    }
+    return pts;
+  }
+  function genSpiral(){
+    const rand = mulberry32(37);
+    const pts = [];
+    const turns = 1.7;
+    for(let i=0;i<20;i++){
+      const t = i/20;
+      const r = t*3.7;
+      const theta = t*turns*2*Math.PI;
+      const j = () => (rand()-0.5)*0.35;
+      pts.push({x:5+r*Math.cos(theta)+j(), y:5+r*Math.sin(theta)+j(), label:0});
+      pts.push({x:5+r*Math.cos(theta+Math.PI)+j(), y:5+r*Math.sin(theta+Math.PI)+j(), label:1});
+    }
+    return pts;
+  }
+
+  const state = {
+    dataset: 'linear',
+    points: genLinear(),
+    customPoints: [],
+    activeClass: 0,
+    model: 'perceptron',
+    weights: null,
+    epoch: 0,
+    training: false,
+    rafId: null,
+    lr: 0.6,
+    gamma: 0.6,
+    view: 'input',
+    history: { epoch: [], acc: [], loss: [] }
+  };
+
+  function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+
+  const HIDDEN = 4;
+
+  function currentPoints(){
+    return state.dataset === 'custom' ? state.customPoints : state.points;
+  }
+
+  function initWeights(){
+    const rand = mulberry32(Date.now() % 100000);
+    if(state.model === 'perceptron'){
+      state.weights = { w1: rand()*2-1, w2: rand()*2-1, b: rand()*2-1 };
+    } else if(state.model === 'network') {
+      const H = HIDDEN;
+      const W1 = [], b1 = [];
+      for(let j=0;j<H;j++){ W1.push([rand()*2-1, rand()*2-1]); b1.push(rand()*2-1); }
+      const W2 = []; for(let j=0;j<H;j++) W2.push(rand()*2-1);
+      state.weights = { W1, b1, W2, b2: rand()*2-1, H };
+    } else {
+      const pts = currentPoints();
+      const landmarks = pts.map(p => [p.x, p.y]);
+      const alphas = landmarks.map(() => (rand()*2-1)*0.1);
+      state.weights = { landmarks, alphas, bias: rand()*0.2-0.1 };
+    }
+    state.epoch = 0;
+    state.history = { epoch: [], acc: [], loss: [] };
+  }
+  initWeights();
+
+  function kernelFeatures(x1, x2){
+    const w = state.weights;
+    const g = state.gamma;
+    const k = new Array(w.landmarks.length);
+    for(let i=0;i<w.landmarks.length;i++){
+      const dx = x1 - w.landmarks[i][0], dy = x2 - w.landmarks[i][1];
+      k[i] = Math.exp(-g*(dx*dx+dy*dy));
+    }
+    return k;
+  }
+
+  function forward(x1, x2){
+    const w = state.weights;
+    if(state.model === 'perceptron'){
+      return sigmoid(w.w1*x1 + w.w2*x2 + w.b);
+    } else if(state.model === 'network') {
+      const h = [];
+      for(let j=0;j<w.H;j++) h.push(Math.tanh(w.W1[j][0]*x1 + w.W1[j][1]*x2 + w.b1[j]));
+      let z = w.b2;
+      for(let j=0;j<w.H;j++) z += w.W2[j]*h[j];
+      return { out: sigmoid(z), h };
+    } else {
+      const k = kernelFeatures(x1, x2);
+      let z = w.bias;
+      for(let i=0;i<k.length;i++) z += w.alphas[i]*k[i];
+      return sigmoid(z);
+    }
+  }
+
+  function trainEpoch(){
+    const lr = state.lr;
+    const pts = currentPoints();
+    if(pts.length === 0) return;
+    const w = state.weights;
+    if(state.model === 'perceptron'){
+      let dw1=0, dw2=0, db=0;
+      for(const p of pts){
+        const out = sigmoid(w.w1*p.x + w.w2*p.y + w.b);
+        const dz = out - p.label;
+        dw1 += dz*p.x; dw2 += dz*p.y; db += dz;
+      }
+      const n = pts.length;
+      w.w1 -= lr*dw1/n; w.w2 -= lr*dw2/n; w.b -= lr*db/n;
+    } else if(state.model === 'network') {
+      const H = w.H;
+      const gW1 = Array.from({length:H},()=>[0,0]);
+      const gb1 = new Array(H).fill(0);
+      const gW2 = new Array(H).fill(0);
+      let gb2 = 0;
+      for(const p of pts){
+        const { out, h } = forward(p.x, p.y);
+        const dz = out - p.label;
+        for(let j=0;j<H;j++){
+          gW2[j] += dz*h[j];
+          const dh = dz*w.W2[j]*(1-h[j]*h[j]);
+          gW1[j][0] += dh*p.x; gW1[j][1] += dh*p.y;
+          gb1[j] += dh;
+        }
+        gb2 += dz;
+      }
+      const n = pts.length;
+      for(let j=0;j<H;j++){
+        w.W1[j][0] -= lr*gW1[j][0]/n; w.W1[j][1] -= lr*gW1[j][1]/n;
+        w.b1[j] -= lr*gb1[j]/n;
+        w.W2[j] -= lr*gW2[j]/n;
+      }
+      w.b2 -= lr*gb2/n;
+    } else {
+      const n = pts.length;
+      const lambda = 0.02;
+      const gAlpha = new Array(w.alphas.length).fill(0);
+      let gBias = 0;
+      for(const p of pts){
+        const k = kernelFeatures(p.x, p.y);
+        let z = w.bias;
+        for(let i=0;i<k.length;i++) z += w.alphas[i]*k[i];
+        const out = sigmoid(z);
+        const dz = out - p.label;
+        for(let i=0;i<k.length;i++) gAlpha[i] += dz*k[i];
+        gBias += dz;
+      }
+      for(let i=0;i<w.alphas.length;i++) w.alphas[i] -= lr*(gAlpha[i]/n + lambda*w.alphas[i]);
+      w.bias -= lr*gBias/n;
+    }
+    state.epoch++;
+    recordHistory();
+  }
+
+  function accuracyAndLoss(){
+    const pts = currentPoints();
+    if(pts.length === 0) return { acc:null, loss:null };
+    let correct = 0, loss = 0;
+    const eps = 1e-7;
+    for(const p of pts){
+      const res = forward(p.x, p.y);
+      const out = typeof res === 'number' ? res : res.out;
+      if((out > 0.5 ? 1 : 0) === p.label) correct++;
+      const o = Math.min(1-eps, Math.max(eps, out));
+      loss += -(p.label*Math.log(o) + (1-p.label)*Math.log(1-o));
+    }
+    return { acc: correct/pts.length, loss: loss/pts.length };
+  }
+
+  function recordHistory(){
+    const { acc, loss } = accuracyAndLoss();
+    if(acc === null) return;
+    state.history.epoch.push(state.epoch);
+    state.history.acc.push(acc);
+    state.history.loss.push(loss);
+    if(state.history.epoch.length > 400){
+      state.history.epoch.shift(); state.history.acc.shift(); state.history.loss.shift();
+    }
+  }
+
+  function drawGrid(){
+    ctx.fillStyle = '#0f1b2e';
+    ctx.fillRect(0,0,W,H);
+    for(let i=0;i<=10;i++){
+      const [px] = toPx(i,0);
+      ctx.strokeStyle = i%5===0 ? 'rgba(148,180,214,0.18)' : 'rgba(148,180,214,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,H); ctx.stroke();
+      const [,py] = toPx(0,i);
+      ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(W,py); ctx.stroke();
+    }
+  }
+
+  function shadeColor(out){
+    const rr = Math.round(255*out*0.5 + 20);
+    const gg = Math.round(120*(1-out) + 40*out);
+    const bb = Math.round(229*(1-out) + 104*out);
+    return `rgba(${rr},${gg},${bb},0.16)`;
+  }
+
+  function drawBoundaryInput(){
+    if(state.epoch === 0) return;
+    const cols = 60, rows = 44;
+    const cw = W/cols, ch = H/rows;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const px = c*cw + cw/2, py = r*ch + ch/2;
+        const [dx, dy] = toData(px, py);
+        const res = forward(dx, dy);
+        const out = typeof res === 'number' ? res : res.out;
+        ctx.fillStyle = shadeColor(out);
+        ctx.fillRect(c*cw, r*ch, cw+1, ch+1);
+      }
+    }
+    if(state.model === 'perceptron'){
+      const w = state.weights;
+      if(Math.abs(w.w2) > 1e-6){
+        const y0 = -(w.w1*0 + w.b)/w.w2;
+        const y1 = -(w.w1*DOMAIN + w.b)/w.w2;
+        const [x0p,y0p] = toPx(0, Math.max(-2,Math.min(DOMAIN+2,y0)));
+        const [x1p,y1p] = toPx(DOMAIN, Math.max(-2,Math.min(DOMAIN+2,y1)));
+        ctx.strokeStyle = '#f2b441';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(x0p,y0p); ctx.lineTo(x1p,y1p); ctx.stroke();
+      }
+    }
+    if(state.model === 'svm'){
+      const w = state.weights;
+      ctx.fillStyle = 'rgba(157,123,240,0.85)';
+      for(const lm of w.landmarks){
+        const [px,py] = toPx(lm[0], lm[1]);
+        ctx.beginPath(); ctx.arc(px,py,1.6,0,Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  function drawPointsInput(){
+    const pts = currentPoints();
+    for(const p of pts){
+      const [px,py] = toPx(p.x, p.y);
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI*2);
+      ctx.fillStyle = p.label === 0 ? '#48c9e5' : '#ff7a68';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(15,27,46,0.55)';
+      ctx.stroke();
+    }
+  }
+
+  function drawHiddenSpace(){
+    ctx.fillStyle = '#0f1b2e';
+    ctx.fillRect(0,0,W,H);
+    const lo=-1.25, hi=1.25;
+    for(let v=-1;v<=1;v+=0.5){
+      const [px] = toPxDomain(v,0,lo,hi);
+      ctx.strokeStyle = Math.abs(v)<0.01 ? 'rgba(148,180,214,0.32)' : 'rgba(148,180,214,0.1)';
+      ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,H); ctx.stroke();
+      const [,py] = toPxDomain(0,v,lo,hi);
+      ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(W,py); ctx.stroke();
+    }
+    const pts = currentPoints();
+    for(const p of pts){
+      const res = forward(p.x, p.y);
+      if(typeof res === 'number') continue;
+      const [px,py] = toPxDomain(res.h[0], res.h[1], lo, hi);
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, Math.PI*2);
+      ctx.fillStyle = p.label === 0 ? '#48c9e5' : '#ff7a68';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(15,27,46,0.55)';
+      ctx.stroke();
+    }
+  }
+
+  function render(){
+    if(state.view === 'hidden' && state.model === 'network' && state.epoch > 0){
+      drawHiddenSpace();
+      document.getElementById('axis-caption').innerHTML = '<span>hidden unit h0</span><span>hidden unit h1</span>';
+    } else {
+      drawGrid();
+      drawBoundaryInput();
+      drawPointsInput();
+      document.getElementById('axis-caption').innerHTML = '<span>feature x1</span><span>feature x2</span>';
+    }
+    renderMetrics();
+  }
+
+  function renderMetrics(){
+    mctx.fillStyle = '#0f1b2e';
+    mctx.fillRect(0,0,MW,MH);
+    const h = state.history;
+    if(h.epoch.length < 2){
+      mctx.fillStyle = 'rgba(148,180,214,0.4)';
+      mctx.font = '12px Inter, sans-serif';
+      mctx.fillText('train the model to see accuracy and loss over time', 12, MH/2);
+      return;
+    }
+    const maxLoss = Math.max(...h.loss, 0.01);
+    const n = h.epoch.length;
+    const stepX = MW / Math.max(n-1,1);
+    mctx.strokeStyle = '#48c9e5';
+    mctx.lineWidth = 2;
+    mctx.beginPath();
+    h.acc.forEach((v,i) => {
+      const x = i*stepX, y = MH - v*(MH-10) - 5;
+      if(i===0) mctx.moveTo(x,y); else mctx.lineTo(x,y);
+    });
+    mctx.stroke();
+    mctx.strokeStyle = '#f2b441';
+    mctx.lineWidth = 2;
+    mctx.beginPath();
+    h.loss.forEach((v,i) => {
+      const norm = v/maxLoss;
+      const x = i*stepX, y = MH - norm*(MH-10) - 5;
+      if(i===0) mctx.moveTo(x,y); else mctx.lineTo(x,y);
+    });
+    mctx.stroke();
+  }
+
+  // --- UI elements ---
+  const epochOut = document.getElementById('epoch-out');
+  const lossOut = document.getElementById('loss-out');
+  const accOut = document.getElementById('acc-out');
+  const statusOut = document.getElementById('status-out');
+  const noteOut = document.getElementById('note-out');
+  const equationOut = document.getElementById('equation-out');
+  const customControls = document.getElementById('custom-controls');
+  const viewInputBtn = document.getElementById('view-input');
+  const viewHiddenBtn = document.getElementById('view-hidden');
+  const lrSlider = document.getElementById('lr-slider');
+  const lrOut = document.getElementById('lr-out');
+  const gammaRow = document.getElementById('gamma-row');
+  const gammaSlider = document.getElementById('gamma-slider');
+  const gammaOut = document.getElementById('gamma-out');
+  const comparePanel = document.getElementById('compare-panel');
+
+  const notes = {
+    linear: 'Linear clusters sit in two clean regions. A single straight line should separate them almost perfectly — the easy case for a linear model.',
+    xor: 'The classic XOR pattern: each class occupies two opposite corners. No straight line can separate them, no matter how you rotate it — train the perceptron and watch it plateau.',
+    circles: 'One class rings the other. A straight line always cuts through both — this needs a curved boundary, which only the neural network or kernel SVM can bend into place.',
+    moons: 'Two interleaving crescents. They almost look separable at a glance, but a straight line always clips one horn of a moon — a mildly curved boundary is needed.',
+    spiral: 'Two arms winding around each other. This is a hard case even for the small network or SVM here — if it struggles, that is realistic: spirals often need more capacity or more training than a toy model provides.',
+    custom: 'Click "place class A" or "place class B", then click the canvas to build your own dataset. Try making it separable, then not.'
+  };
+  const modelNotes = {
+    perceptron: ' A perceptron only draws a straight line — it cannot curve, no matter how long you train it.',
+    network: ' The hidden layer lets the network fold space before drawing its boundary, so curved and disjoint regions become reachable. Switch to "hidden-layer space" above to see the fold.',
+    svm: ' The kernel SVM maps every point through a fixed radial-basis-function feature, centred on each training point (the small violet dots), then fits a linear boundary in that new, much higher-dimensional space — the classic "kernel trick". Unlike the neural network, these features are not learned, only their weights are.'
+  };
+
+  function updateNote(){
+    let text = notes[state.dataset];
+    if(state.epoch > 0) text += modelNotes[state.model];
+    noteOut.textContent = text;
+  }
+
+  function updateEquation(){
+    if(state.epoch === 0){
+      equationOut.textContent = 'boundary: train the model to see its equation';
+      return;
+    }
+    if(state.model === 'perceptron'){
+      const w = state.weights;
+      equationOut.textContent = `boundary: ${w.w1.toFixed(2)}·x1 + ${w.w2.toFixed(2)}·x2 + ${w.b.toFixed(2)} = 0`;
+    } else if(state.model === 'network') {
+      equationOut.textContent = `network: ${HIDDEN} hidden units, ${HIDDEN*3+HIDDEN+1} parameters — no single line describes this boundary`;
+    } else {
+      const w = state.weights;
+      equationOut.textContent = `kernel SVM: ${w.landmarks.length} support points, gamma=${state.gamma.toFixed(2)}, bias=${w.bias.toFixed(2)}`;
+    }
+  }
+
+  function updateReadout(){
+    epochOut.textContent = state.epoch;
+    const { acc, loss } = accuracyAndLoss();
+    accOut.textContent = acc === null ? '—' : Math.round(acc*100) + '%';
+    lossOut.textContent = loss === null ? '—' : loss.toFixed(3);
+    statusOut.textContent = state.training ? 'training…' : (state.epoch>0 ? 'stopped' : 'idle');
+    viewHiddenBtn.disabled = !(state.model === 'network' && state.epoch > 0);
+    updateEquation();
+  }
+
+  function stopTraining(){
+    state.training = false;
+    if(state.rafId) cancelAnimationFrame(state.rafId);
+    document.getElementById('train-btn').textContent = 'Train';
+    updateReadout();
+    updateNote();
+  }
+
+  function trainLoop(){
+    if(!state.training) return;
+    for(let i=0;i<4;i++) trainEpoch();
+    render();
+    updateReadout();
+    if(state.epoch >= 400){ stopTraining(); return; }
+    state.rafId = requestAnimationFrame(trainLoop);
+  }
+
+  function resetView(){
+    state.view = 'input';
+    viewInputBtn.classList.add('active');
+    viewHiddenBtn.classList.remove('active');
+  }
+
+  document.getElementById('train-btn').addEventListener('click', () => {
+    if(currentPoints().length < 2){ statusOut.textContent = 'add points first'; return; }
+    state.training = !state.training;
+    document.getElementById('train-btn').textContent = state.training ? 'Pause' : 'Train';
+    if(state.training) trainLoop(); else stopTraining();
+  });
+
+  document.getElementById('step-btn').addEventListener('click', () => {
+    if(currentPoints().length < 2){ statusOut.textContent = 'add points first'; return; }
+    if(state.training) return;
+    trainEpoch();
+    render();
+    updateReadout();
+    updateNote();
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    state.training = false;
+    if(state.rafId) cancelAnimationFrame(state.rafId);
+    document.getElementById('train-btn').textContent = 'Train';
+    resetView();
+    comparePanel.style.display = 'none';
+    initWeights();
+    render();
+    updateReadout();
+    updateNote();
+  });
+
+  document.getElementById('compare-btn').addEventListener('click', () => {
+    if(currentPoints().length < 2){ statusOut.textContent = 'add points first'; return; }
+    state.training = false;
+    if(state.rafId) cancelAnimationFrame(state.rafId);
+    document.getElementById('train-btn').textContent = 'Train';
+    const originalModel = state.model;
+    const results = {};
+    ['perceptron','network','svm'].forEach(m => {
+      state.model = m;
+      initWeights();
+      for(let e=0;e<300;e++) trainEpoch();
+      results[m] = accuracyAndLoss().acc;
+    });
+    state.model = originalModel;
+    initWeights();
+    resetView();
+    render();
+    updateReadout();
+    updateNote();
+    document.getElementById('cmp-perceptron').textContent = Math.round(results.perceptron*100) + '%';
+    document.getElementById('cmp-network').textContent = Math.round(results.network*100) + '%';
+    document.getElementById('cmp-svm').textContent = Math.round(results.svm*100) + '%';
+    comparePanel.style.display = 'block';
+  });
+
+  lrSlider.addEventListener('input', () => {
+    state.lr = Number(lrSlider.value);
+    lrOut.textContent = state.lr.toFixed(2);
+  });
+
+  gammaSlider.addEventListener('change', () => {
+    state.gamma = Number(gammaSlider.value);
+    gammaOut.textContent = state.gamma.toFixed(2);
+    if(state.model === 'svm'){
+      initWeights();
+      render();
+      updateReadout();
+      updateNote();
+    }
+  });
+  gammaSlider.addEventListener('input', () => {
+    gammaOut.textContent = Number(gammaSlider.value).toFixed(2);
+  });
+
+  document.querySelectorAll('#dataset-seg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#dataset-seg button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.dataset = btn.dataset.dataset;
+      state.training = false;
+      if(state.rafId) cancelAnimationFrame(state.rafId);
+      document.getElementById('train-btn').textContent = 'Train';
+      if(state.dataset === 'linear') state.points = genLinear();
+      if(state.dataset === 'xor') state.points = genXOR();
+      if(state.dataset === 'circles') state.points = genCircles();
+      if(state.dataset === 'moons') state.points = genMoons();
+      if(state.dataset === 'spiral') state.points = genSpiral();
+      customControls.classList.toggle('show', state.dataset === 'custom');
+      canvas.classList.toggle('drawable', state.dataset === 'custom');
+      resetView();
+      comparePanel.style.display = 'none';
+      initWeights();
+      render();
+      updateReadout();
+      updateNote();
+    });
+  });
+
+  document.querySelectorAll('#model-seg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#model-seg button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.model = btn.dataset.model;
+      state.training = false;
+      if(state.rafId) cancelAnimationFrame(state.rafId);
+      document.getElementById('train-btn').textContent = 'Train';
+      gammaRow.classList.toggle('show', state.model === 'svm');
+      resetView();
+      comparePanel.style.display = 'none';
+      initWeights();
+      render();
+      updateReadout();
+      updateNote();
+    });
+  });
+
+  [viewInputBtn, viewHiddenBtn].forEach(btn => {
+    btn.addEventListener('click', () => {
+      if(btn.disabled) return;
+      viewInputBtn.classList.toggle('active', btn === viewInputBtn);
+      viewHiddenBtn.classList.toggle('active', btn === viewHiddenBtn);
+      state.view = btn.dataset.view;
+      render();
+    });
+  });
+
+  document.querySelectorAll('.custom-controls button[data-class]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.custom-controls button[data-class]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activeClass = Number(btn.dataset.class);
+    });
+  });
+
+  document.getElementById('clear-points').addEventListener('click', () => {
+    state.customPoints = [];
+    comparePanel.style.display = 'none';
+    initWeights();
+    render();
+    updateReadout();
+  });
+
+  canvas.addEventListener('click', (e) => {
+    if(state.dataset !== 'custom' || state.view !== 'input') return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width, scaleY = H / rect.height;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+    const [dx, dy] = toData(px, py);
+    state.customPoints.push({ x: dx, y: dy, label: state.activeClass });
+    render();
+    updateReadout();
+  });
+
+  function download(filename, content, type){
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('export-weights').addEventListener('click', () => {
+    download(`${state.model}-weights.json`, JSON.stringify(state.weights, null, 2), 'application/json');
+  });
+  document.getElementById('export-data').addEventListener('click', () => {
+    const pts = currentPoints();
+    const csv = 'x,y,label\n' + pts.map(p => `${p.x.toFixed(4)},${p.y.toFixed(4)},${p.label}`).join('\n');
+    download(`${state.dataset}-dataset.csv`, csv, 'text/csv');
+  });
+
+  render();
+  updateReadout();
+  updateNote();
+})();
+</script>
+</body>
+</html>
